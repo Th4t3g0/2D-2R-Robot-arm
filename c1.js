@@ -1,10 +1,12 @@
 
 //set up 
 let l1=100;
-let l2=150;
+let l2=100;
+let l3=100;
 let q=-1;
-var PenUp=1;//
+let PenUp=true;//
 let pos =[200,200];
+let tcp=[0,0];
 let xx1=0;
 let yy1=0;
 const T = [
@@ -15,102 +17,195 @@ const T = [
 ];
 ///Transformation matrix
 
-function Kinematics() {
-    console.log("Hello World ||");
+
+///To Use
+function ForwardKinematic(th1,th2,th3) {
+    let th_rad1 =th1//*Math.PI/180;
+    let th_rad2 =th2//*Math.PI/180;
+    let th_rad3=th3//*Math.PI/180;
+
+    let x = l1*Math.cos(th_rad1)+l2*Math.cos(th_rad1+th_rad2)+l3*Math.cos(th_rad1+th_rad2+th_rad3);
+    let y =l1*Math.sin(th_rad1)+l2*Math.sin(th_rad1+th_rad2)+l3*Math.sin(th_rad1+th_rad2+th_rad3);
+    return [x,y];
 }
 
-function ForwardKinematics(th1,th2) {
-    let th_rad1 =th1*Math.PI/180;
-    let th_rad2 =th2*Math.PI/180;
 
-    let x = l1*Math.cos(th_rad1)+l2*Math.cos(th_rad1+th_rad2);
-    let y =l1*Math.sin(th_rad1)+l2*Math.sin(th_rad1+th_rad2);
+//To USE
+function InverseKinematic(x,y) {
+    let alpha=Math.atan2(y,x);// aplha = theta1 + theta2 + theta3
+    x2=x-l3*Math.cos(alpha);
+    y2=y-l3*Math.sin(alpha);
+    let c2 = ((x2*x2)+(y2*y2)-(l1*l1)-(l2*l2))/(2*l1*l2);
+    let s2 =Math.sqrt(Math.max(0,1-c2*c2));
 
-let output=[x,y];
-return output;
-}
+    let theta2 = Math.atan2(s2,c2); //Theta 2
 
-function InverseKinematics(A) {
+    let dev =((l1+l2*c2)**2) +(l2**2)*(s2**2); 
+
+
+    let s1 =(y2*(l1+l2*c2)-x2*(l2*s2))/(dev) ;
+    let c1 = (x2*(l1+l2*c2)+y2*(l2*s2))/(dev)
+
+    let theta1=Math.atan2(s1,c1);
+    let theta3 =alpha-theta1-theta2;
+
+    output =[theta1,theta2,theta3];
     
-    let th1 = Math.atan2(((T[1][3]-l2*T[1][0])/l1),((T[0][3]-l2*T[0][0])/l1))
-    
-    let th12 = Math.atan2(T[1][0], T[0][0]);
-
-    let th2 = th12-th1;
-
-    
-    let output=[th1,th2];
     return output;
 }
+
+
+
 function Reach(x,y) {
     return Math.sqrt(x*x+y*y);
 }
 
-function InverseKinematicsCC(x,y) {
-    let th1 = 90;
-    let th2 = 90;
-    let output=[th1,th2];
-    if (Reach(x,y) > l1+l2) {
-        //console.log("Out of range");
-        //console.log(Reach(x,y))
-        return output;
-    }
 
-     th2 = Math.acos((x * x + y * y - l1 * l1 - l2 * l2) / (2 * l1 * l2));
-     th1 = Math.atan2(y, x) - Math.atan2(l2 * Math.sin(th2),l1 + l2 * Math.cos(th2));
-    output=[th1,th2];
-    return output;
-}
+function JointLocation(A) {
+    let x1 = l1*Math.cos(A[0]);
+    let y1 =l1*Math.sin(A[0]);
 
-function JointLocation(th1,th2) {
-    let x1 = l1*Math.cos(th1);
-    let y1 =l1*Math.sin(th1);
+    let x2 = l1*Math.cos(A[0])+l2*Math.cos(A[0]+A[1]);
+    let y2 =l1*Math.sin(A[0])+l2*Math.sin(A[0]+A[1]);
 
-    let x2 = l1*Math.cos(th1)+l2*Math.cos(th1+th2);
-    let y2 =l1*Math.sin(th1)+l2*Math.sin(th1+th2);
+    let x3=l1*Math.cos(A[0])+l2*Math.cos(A[0]+A[1])+l3*Math.cos(A[0]+A[1]+A[2]);
+    let y3=l1*Math.sin(A[0])+l2*Math.sin(A[0]+A[1])+l3*Math.sin(A[0]+A[1]+A[2]);
  
 
     
-    let joint = [x1,y1,x2,y2]
+    let joint = [x1,y1,x2,y2,x3,y3];
     return joint;
 }
 
 
 
+
+function stroke(V) {
+    let l = V[0];
+    let angle = V[1]; 
+
+    let step = 0.05; // segment length
+    let n = Math.ceil(l / step);
+
+    let sx = tcp[0];
+    let sy = tcp[1];
+
+    let output=[0,0];
+
+    for (let ii = 1; ii <= n; ii++) {
+        let dx = sx + (l * ii / n) * Math.cos(angle);
+        let dy = sy + (l * ii / n) * Math.sin(angle);
+
+        // wobble
+        dx += (Math.random() - 0.5) * .8; 
+        dy += (Math.random() - 0.5) * .8; 
+
+
+        
+        //console.log(dx);
+
+        const newLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        newLine.setAttribute("x1", sx);
+        newLine.setAttribute("y1", sy);
+        newLine.setAttribute("x2", dx);
+        newLine.setAttribute("y2", dy);
+        newLine.setAttribute("stroke", "black");
+        newLine.setAttribute("stroke-width", "2");
+        newLine.setAttribute("stroke-linecap", "round");
+        newLine.classList.add("strokes");
+
+        
+        setTimeout(() => {
+
+
+            
+            if (!PenUp) {
+                LL(dx,dy);
+                document.getElementById("robotArm").appendChild(newLine);
+            }
+            
+           
+        }, ii * 30);
+
+         sx = dx;
+         sy = dy;
+
+        if(ii==n){
+            LL(dx,dy);
+        }
+        
+        output=[dx,dy];
+        tcp=[dx,dy];
+        
+    }
+    console.log(output[0]);
+    console.log(output[1]);
+    return output;
+}
+
+
+PenUp=false;
+D =[3,-Math.PI/2]
+stroke(D);
+
+
+
+
+    
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
 function DrawLoop(joint) {
 
+    //console.log(joint[4]);
     ///Draw the firlst link from base to joint 1
       document.getElementById('link1').setAttribute('x1', 0);
       document.getElementById('link1').setAttribute('y1', 0);
       document.getElementById('link1').setAttribute('x2', joint[0]);
       document.getElementById('link1').setAttribute('y2', joint[1]);
+    
+      document.getElementById('j1').setAttribute('cx', joint[0]);
+      document.getElementById('j1').setAttribute('cy', joint[1]);
 
       document.getElementById('link2').setAttribute('x1', joint[0]);
       document.getElementById('link2').setAttribute('y1', joint[1]);
       document.getElementById('link2').setAttribute('x2', joint[2]);
       document.getElementById('link2').setAttribute('y2', joint[3]);
-      document.getElementById('EE').setAttribute('cx', joint[2]);
-      document.getElementById('EE').setAttribute('cy', joint[3]);
+
+      document.getElementById('j2').setAttribute('cx', joint[2]);
+      document.getElementById('j2').setAttribute('cy', joint[3]);
+    
+      document.getElementById('link3').setAttribute('x1', joint[2]);
+      document.getElementById('link3').setAttribute('y1', joint[3]);
+      document.getElementById('link3').setAttribute('x2', joint[4]);
+      document.getElementById('link3').setAttribute('y2', joint[5]);
+
+
+    
+      document.getElementById('EE').setAttribute('cx', joint[4]);
+      document.getElementById('EE').setAttribute('cy', joint[5]);
     
 }
 ///////////////////////
 
 
-function Drawer() {
-    
-Random();
-    console.log("x:" +pos[0]);
-    console.log("y:" +pos[1]);
-let angles=InverseKinematicsCC(pos[0]+200,pos[1]);
-let joints = JointLocation(angles[0],angles[1]);
-DrawLoop(joints,angles[2],angles[3]);
 
-}
-
-function Random() {
-    pos[0]=pos[0]+Math.random();
-    pos[1]=pos[1]+Math.random();
-}
 
 const svg = document.getElementById('robotArm');
 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -135,6 +230,14 @@ function addPointToPath(x, y) {
 }
 
 
+
+
+
+
+
+
+
+
 function followMouse() {
 
     const svg = document.getElementById('robotArm');
@@ -145,9 +248,9 @@ function followMouse() {
   pt.x = event.clientX+400;
   pt.y = event.clientY;
   const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-  let angles=InverseKinematicsCC(svgP.x.toFixed(2)+200,svgP.y.toFixed(2));
-  let joints = JointLocation(angles[0],angles[1]);
-  DrawLoop(joints,angles[2],angles[3]);
+  let angles=InverseKinematic(svgP.x.toFixed(2)+200,svgP.y.toFixed(2));
+  let joints = JointLocation(angles);
+  DrawLoop(joints);
 
 });
 
@@ -170,5 +273,12 @@ function followMous() {
     svg.addEventListener('mousedown', function(event) {PenUp=!PenUp; });
 
 }
-followMous();
-followMouse();
+
+
+
+function LL(x,y) {
+  let angles=InverseKinematic(x+200,y);
+  let joints = JointLocation(angles);
+  DrawLoop(joints);
+}
+
